@@ -1,0 +1,31 @@
+import tensorflow as tf
+from tensorflow.keras import layers, Model
+def conv_block(x, filters):
+    x = layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
+    x = layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
+    return x
+def unet_model(input_shape=(128, 128, 4)):
+    inputs = layers.Input(shape=input_shape)
+    c1 = conv_block(inputs, 64)
+    p1 = layers.MaxPool2D()(c1)
+    c2 = conv_block(p1, 128)
+    p2 = layers.MaxPool2D()(c2)
+    c3 = conv_block(p2, 256)
+    p3 = layers.MaxPool2D()(c3)
+    c4 = conv_block(p3, 512)
+    p4 = layers.MaxPool2D()(c4)
+    c5 = conv_block(p4, 1024)
+    u6 = layers.UpSampling2D()(c5)
+    u6 = layers.Concatenate()([u6, c4])
+    c6 = conv_block(u6, 512)
+    u7 = layers.UpSampling2D()(c6)
+    u7 = layers.Concatenate()([u7, c3])
+    c7 = conv_block(u7, 256)
+    u8 = layers.UpSampling2D()(c7)
+    u8 = layers.Concatenate()([u8, c2])
+    c8 = conv_block(u8, 128)
+    u9 = layers.UpSampling2D()(c8)
+    u9 = layers.Concatenate()([u9, c1])
+    c9 = conv_block(u9, 64)
+    outputs = layers.Conv2D(1, 1, activation="sigmoid")(c9)
+    return Model(inputs, outputs)
