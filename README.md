@@ -13,7 +13,7 @@ The models perform semantic segmentation to identify landslide areas from satell
 - `notebooks/` → Colab/Jupyter notebooks for experiments
 ## Setup
 Data Set - https://zenodo.org/records/7189381
-git clone https://github.com/YOUR_USERNAME/landslide-detection-HRDLDD.git
+git clone https://github.com/Atrii27/Landslide_Detection_HRDLDD_NN.git
 cd landslide-detection-HRDLDD
 pip install -r requirements.txt
 ## Training 
@@ -33,6 +33,7 @@ U-Net: Convolutional Networks for Biomedical Image Segmentation
 ResUNet: A Deep Residual U-Net for Image Segmentation
 Attention U-Net: Learning Where to Look for the Pancreas
 HR-GLDD Dataset Paper
+
 
 
 
