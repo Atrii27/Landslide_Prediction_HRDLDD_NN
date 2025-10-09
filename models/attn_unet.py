@@ -1,37 +1,69 @@
 import tensorflow as tf
-from tensorflow.keras import layers, Model
-def conv_block(x, filters):
-    x = layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
-    x = layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
-    return x
-def attention_gate(x, g, filters):
-    theta_x = layers.Conv2D(filters, 1, strides=1, padding="same")(x)
-    g_up = layers.UpSampling2D(size=(2,2))(g) if g.shape[1] < theta_x.shape[1] else g
-    phi_g = layers.Conv2D(filters, 1, strides=1, padding="same")(g_up)
+from tensorflow.keras import layers, models
+#Attention Gate
+def attention_gate(x, g, inter_channels):
+    theta_x = layers.Conv2D(inter_channels, (1, 1), padding='same')(x)
+    phi_g = layers.Conv2D(inter_channels, (1, 1), padding='same')(g)
     add = layers.Add()([theta_x, phi_g])
-    act = layers.Activation("relu")(add)
-    psi = layers.Conv2D(1, 1, padding="same")(act)
-    psi = layers.Activation("sigmoid")(psi)
+    act = layers.Activation('relu')(add)
+    psi = layers.Conv2D(1, (1, 1), padding='same')(act)
+    psi = layers.Activation('sigmoid')(psi)
     out = layers.Multiply()([x, psi])
     return out
-def attn_unet_model(input_shape=(128,128,4)):
-    inputs = layers.Input(shape=input_shape)
-    c1 = conv_block(inputs, 64); p1 = layers.MaxPool2D()(c1)
-    c2 = conv_block(p1, 128); p2 = layers.MaxPool2D()(c2)
-    c3 = conv_block(p2, 256); p3 = layers.MaxPool2D()(c3)
-    c4 = conv_block(p3, 512); p4 = layers.MaxPool2D()(c4)
-    b = conv_block(p4, 1024)
-    g1 = layers.Conv2D(512, 1, padding="same")(b)
-    att1 = attention_gate(c4, g1, 256)
-    u1 = layers.UpSampling2D()(b); u1 = layers.Concatenate()([u1, att1]); d1 = conv_block(u1, 512)
-    g2 = layers.Conv2D(256, 1, padding="same")(d1)
-    att2 = attention_gate(c3, g2, 128)
-    u2 = layers.UpSampling2D()(d1); u2 = layers.Concatenate()([u2, att2]); d2 = conv_block(u2, 256)
-    g3 = layers.Conv2D(128, 1, padding="same")(d2)
-    att3 = attention_gate(c2, g3, 64)
-    u3 = layers.UpSampling2D()(d2); u3 = layers.Concatenate()([u3, att3]); d3 = conv_block(u3, 128)
-    g4 = layers.Conv2D(64, 1, padding="same")(d3)
-    att4 = attention_gate(c1, g4, 32)
-    u4 = layers.UpSampling2D()(d3); u4 = layers.Concatenate()([u4, att4]); d4 = conv_block(u4, 64)
-    outputs = layers.Conv2D(1, 1, activation="sigmoid")(d4)
-    return Model(inputs, outputs)
+#Residual Convolutional Block
+def res_conv_block(x, filters):
+    x_skip = x
+    x = layers.Conv2D(filters, (3, 3), padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Conv2D(filters, (3, 3), padding='same')(x)
+    x = layers.BatchNormalization()(x)
+    # Match dimensions for residual connection
+    if x_skip.shape[-1] != filters:
+        x_skip = layers.Conv2D(filters, (1, 1), padding='same')(x_skip)
+    x = layers.Add()([x, x_skip])
+    x = layers.Activation('relu')(x)
+    return x
+#Encoder Block
+def encoder_block(x, filters):
+    x = res_conv_block(x, filters)
+    p = layers.MaxPooling2D((2, 2))(x)
+    return x, p
+#Decoder Block with Attention
+def decoder_block(x, skip, filters):
+    x = layers.Conv2DTranspose(filters, (2, 2), strides=2, padding='same')(x)
+    skip = attention_gate(skip, x, filters // 2)
+    x = layers.Concatenate()([x, skip])
+    x = res_conv_block(x, filters)
+    return x
+#Build ADSMS Attention U-Net
+ef build_adsms_unet(input_shape=(128, 128, 4), n_classes=1):
+    inputs = layers.Input(input_shape)
+    # Encoder
+    s1, p1 = encoder_block(inputs, 64)
+    s2, p2 = encoder_block(p1, 128)
+    s3, p3 = encoder_block(p2, 256)
+    s4, p4 = encoder_block(p3, 512)
+    # Bridge
+    b1 = res_conv_block(p4, 1024)
+    # Decoder
+    d1 = decoder_block(b1, s4, 512)
+    d2 = decoder_block(d1, s3, 256)
+    d3 = decoder_block(d2, s2, 128)
+    d4 = decoder_block(d3, s1, 64)
+    # Deep supervision outputs (multi-scale)
+    o1 = layers.Conv2D(n_classes, (1, 1), activation='sigmoid', name="output_1")(d4)
+    o2 = layers.Conv2D(n_classes, (1, 1), activation='sigmoid', name="output_2")(d3)
+    o3 = layers.Conv2D(n_classes, (1, 1), activation='sigmoid', name="output_3")(d2)
+    o4 = layers.Conv2D(n_classes, (1, 1), activation='sigmoid', name="output_4")(d1)
+    # Upsample smaller outputs to match input resolution
+    o2 = layers.UpSampling2D((2, 2), interpolation='bilinear')(o2)
+    o3 = layers.UpSampling2D((4, 4), interpolation='bilinear')(o3)
+    o4 = layers.UpSampling2D((8, 8), interpolation='bilinear')(o4)
+    # Fuse outputs (multi-scale fusion)
+    out = layers.Concatenate()([o1, o2, o3, o4])
+    out = layers.Conv2D(n_classes, (1, 1), activation='sigmoid', name="final_output")(out)
+    model = models.Model(inputs, out, name="ADSMS_Attention_UNet")
+    return model
+
+
