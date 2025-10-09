@@ -1,14 +1,5 @@
-U-NET
-Precision: 0.6917132328533689
-Recall: 0.7119792921348845
-F1 Score: 0.7016999650851534
-
-RES-U-NET
-Precision: 0.6651221310733558
-Recall: 0.7058261339177889
-F1 Score: 0.684869873425457
-
-ATTN-U-NET
-Precision: 0.676127144289667
-Recall: 0.7144748795898734
-F1 Score: 0.6947722665556121
+U-Net Accuracy: 0.9479, F1 Score: 0.7237
+ResU-Net Accuracy: 0.9359, F1 Score: 0.6739
+Attention U-Net Accuracy: 0.9397, F1 Score: 0.7357
+Attention Res U-Net Accuracy: 0.9375, F1 Score: 0.6573
+ASDMS U-Net Accuracy: 0.9401, F1 Score: 0.6743
