@@ -6,6 +6,8 @@ from utils import load_data
 from models.unet import unet_model
 from models.resnet import resunet_model
 from models.attn_unet import attn_unet_model
+from models.attn_resunet import attn_resunet_model
+from models.adsms_unet import adsms_unet_model
 from losses import bce_dice_loss
 import pandas as pd
 DATA_DIR = "data"   
@@ -17,6 +19,8 @@ models = {
     "unet": unet_model,
     "resunet": resunet_model,
     "attn_unet": attn_unet_model,
+    "attn_resunet": attn_resunet_model,
+    "adsms_unet": adsms_unet_model,
 }
 results = []
 for name, model_fn in models.items():
@@ -31,7 +35,7 @@ for name, model_fn in models.items():
     history = model.fit(
         train_x, train_y,
         validation_data=(val_x, val_y),
-        epochs=20,
+        epochs=250,
         batch_size=8,
         callbacks=[checkpoint, earlystop]
     )
