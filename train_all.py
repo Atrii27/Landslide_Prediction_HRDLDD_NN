@@ -31,7 +31,7 @@ for name, model_fn in models.items():
                   metrics=["accuracy"])
     model_path = os.path.join(OUT_DIR, f"{name}.h5")
     checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path, save_best_only=True, monitor="val_loss", verbose=1)
-    earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=6, restore_best_weights=True)
+    earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=50, restore_best_weights=True)
     history = model.fit(
         train_x, train_y,
         validation_data=(val_x, val_y),
